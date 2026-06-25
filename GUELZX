@@ -1,0 +1,315 @@
+-- guelzx Hub | Prison Life
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+
+local Window = Rayfield:CreateWindow({
+   Name = "guelzx | Prison Life",
+   Icon = 0,
+   LoadingTitle = "guelzx Hub",
+   LoadingSubtitle = "Prison Life Edition",
+   Theme = "Default",
+   DisableRayfieldPrompts = false,
+   DisableBuildWarnings = false,
+   ConfigurationSaving = {
+      Enabled = true,
+      FolderName = "guelzx",
+      FileName = "PrisonLife"
+   },
+   KeySystem = false,
+})
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local localPlayer = Players.LocalPlayer
+
+-- =====================
+-- TAB: AIMBOT
+-- =====================
+local AimbotTab = Window:CreateTab("Aimbot", 4483362458)
+
+local aimbotEnabled = false
+local aimbotSmoothing = 0.3
+local aimbotKey = Enum.KeyCode.Q
+
+AimbotTab:CreateToggle({
+   Name = "Aimbot",
+   CurrentValue = false,
+   Flag = "AimbotToggle",
+   Callback = function(Value)
+      aimbotEnabled = Value
+   end,
+})
+
+AimbotTab:CreateSlider({
+   Name = "Smoothing",
+   Range = {1, 20},
+   Increment = 1,
+   Suffix = "x",
+   CurrentValue = 5,
+   Flag = "AimbotSmooth",
+   Callback = function(Value)
+      aimbotSmoothing = Value / 10
+   end,
+})
+
+local function getClosestPlayer()
+   local closest = nil
+   local shortestDist = math.huge
+   local camera = workspace.CurrentCamera
+   local screenCenter = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
+
+   for _, player in pairs(Players:GetPlayers()) do
+      if player ~= localPlayer and player.Character then
+         local head = player.Character:FindFirstChild("Head")
+         if head then
+            local screenPos, onScreen = camera:WorldToScreenPoint(head.Position)
+            if onScreen then
+               local dist = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
+               if dist < shortestDist then
+                  shortestDist = dist
+                  closest = player
+               end
+            end
+         end
+      end
+   end
+   return closest
+end
+
+RunService.RenderStepped:Connect(function()
+   if aimbotEnabled and UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
+      local target = getClosestPlayer()
+      if target and target.Character then
+         local head = target.Character:FindFirstChild("Head")
+         if head then
+            local camera = workspace.CurrentCamera
+            local targetCF = CFrame.new(camera.CFrame.Position, head.Position)
+            camera.CFrame = camera.CFrame:Lerp(targetCF, aimbotSmoothing)
+         end
+      end
+   end
+end)
+
+-- =====================
+-- TAB: ESP
+-- =====================
+local ESPTab = Window:CreateTab("ESP", 4483362458)
+
+local espEnabled = false
+local espHighlights = {}
+
+local function clearESP()
+   for _, hl in pairs(espHighlights) do
+      if hl and hl.Parent then hl:Destroy() end
+   end
+   espHighlights = {}
+end
+
+local function applyESP()
+   clearESP()
+   for _, player in pairs(Players:GetPlayers()) do
+      if player ~= localPlayer and player.Character then
+         local hl = Instance.new("Highlight")
+         hl.Name = "guelzxESP"
+         hl.Adornee = player.Character
+         hl.FillColor = Color3.fromRGB(255, 0, 0)
+         hl.OutlineColor = Color3.fromRGB(255, 255, 255)
+         hl.FillTransparency = 0.6
+         hl.OutlineTransparency = 0
+         hl.Parent = player.Character
+         table.insert(espHighlights, hl)
+      end
+   end
+end
+
+ESPTab:CreateToggle({
+   Name = "Player ESP",
+   CurrentValue = false,
+   Flag = "ESPToggle",
+   Callback = function(Value)
+      espEnabled = Value
+      if Value then
+         applyESP()
+      else
+         clearESP()
+      end
+   end,
+})
+
+-- Atualiza ESP quando novos players entram
+Players.PlayerAdded:Connect(function(player)
+   player.CharacterAdded:Connect(function()
+      if espEnabled then
+         task.wait(1)
+         applyESP()
+      end
+   end)
+end)
+
+-- ESP de times (Verde = Guard, Vermelho = Prisioneiro)
+ESPTab:CreateToggle({
+   Name = "Team ESP (Guard/Prisoner)",
+   CurrentValue = false,
+   Flag = "TeamESPToggle",
+   Callback = function(Value)
+      clearESP()
+      if Value then
+         for _, player in pairs(Players:GetPlayers()) do
+            if player ~= localPlayer and player.Character then
+               local hl = Instance.new("Highlight")
+               hl.Name = "guelzxESP"
+               hl.Adornee = player.Character
+               local team = player.Team
+               if team then
+                  if team.Name == "Guards" then
+                     hl.FillColor = Color3.fromRGB(0, 200, 0)
+                     hl.OutlineColor = Color3.fromRGB(0, 255, 0)
+                  else
+                     hl.FillColor = Color3.fromRGB(255, 50, 50)
+                     hl.OutlineColor = Color3.fromRGB(255, 0, 0)
+                  end
+               else
+                  hl.FillColor = Color3.fromRGB(255, 255, 0)
+                  hl.OutlineColor = Color3.fromRGB(255, 255, 255)
+               end
+               hl.FillTransparency = 0.6
+               hl.Parent = player.Character
+               table.insert(espHighlights, hl)
+            end
+         end
+      end
+   end,
+})
+
+-- =====================
+-- TAB: PLAYER
+-- =====================
+local PlayerTab = Window:CreateTab("Player", 4483362458)
+
+-- Speed
+PlayerTab:CreateSlider({
+   Name = "Speed",
+   Range = {16, 500},
+   Increment = 1,
+   Suffix = " WS",
+   CurrentValue = 16,
+   Flag = "SpeedSlider",
+   Callback = function(Value)
+      local char = localPlayer.Character
+      if char and char:FindFirstChild("Humanoid") then
+         char.Humanoid.WalkSpeed = Value
+      end
+   end,
+})
+
+-- Jump Power
+PlayerTab:CreateSlider({
+   Name = "Jump Power",
+   Range = {50, 500},
+   Increment = 1,
+   Suffix = " JP",
+   CurrentValue = 50,
+   Flag = "JumpSlider",
+   Callback = function(Value)
+      local char = localPlayer.Character
+      if char and char:FindFirstChild("Humanoid") then
+         char.Humanoid.UseJumpPower = true
+         char.Humanoid.JumpPower = Value
+      end
+   end,
+})
+
+-- Noclip
+local noclipEnabled = false
+PlayerTab:CreateToggle({
+   Name = "Noclip",
+   CurrentValue = false,
+   Flag = "NoclipToggle",
+   Callback = function(Value)
+      noclipEnabled = Value
+   end,
+})
+
+RunService.Stepped:Connect(function()
+   if noclipEnabled then
+      local char = localPlayer.Character
+      if char then
+         for _, part in pairs(char:GetDescendants()) do
+            if part:IsA("BasePart") then
+               part.CanCollide = false
+            end
+         end
+      end
+   end
+end)
+
+-- Infinite Jump
+local infiniteJump = false
+PlayerTab:CreateToggle({
+   Name = "Infinite Jump",
+   CurrentValue = false,
+   Flag = "InfJumpToggle",
+   Callback = function(Value)
+      infiniteJump = Value
+   end,
+})
+
+UserInputService.JumpRequest:Connect(function()
+   if infiniteJump then
+      local char = localPlayer.Character
+      if char and char:FindFirstChild("Humanoid") then
+         char.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+      end
+   end
+end)
+
+-- =====================
+-- TAB: FLY
+-- =====================
+local FlyTab = Window:CreateTab("Fly", 4483362458)
+
+local flying = false
+local flySpeed = 50
+local flyConnection = nil
+local bodyVel = nil
+local bodyGyro = nil
+
+local function stopFly()
+   flying = false
+   if flyConnection then flyConnection:Disconnect() flyConnection = nil end
+   if bodyVel then bodyVel:Destroy() bodyVel = nil end
+   if bodyGyro then bodyGyro:Destroy() bodyGyro = nil end
+   local char = localPlayer.Character
+   if char and char:FindFirstChild("Humanoid") then
+      char.Humanoid:ChangeState(Enum.HumanoidStateType.Landed)
+   end
+end
+
+local function startFly()
+   flying = true
+   local char = localPlayer.Character
+   if not char then return end
+   local hrp = char:FindFirstChild("HumanoidRootPart")
+   if not hrp then return end
+
+   bodyVel = Instance.new("BodyVelocity")
+   bodyVel.Name = "guelzxFly"
+   bodyVel.Velocity = Vector3.zero
+   bodyVel.MaxForce = Vector3.new(1e9, 1e9, 1e9)
+   bodyVel.Parent = hrp
+
+   bodyGyro = Instance.new("BodyGyro")
+   bodyGyro.Name = "guelzxGyro"
+   bodyGyro.MaxTorque = Vector3.new(1e9, 1e9, 1e9)
+   bodyGyro.D = 100
+   bodyGyro.P = 1e4
+   bodyGyro.Parent = hrp
+
+   local camera = workspace.CurrentCamera
+
+   flyConnection = RunService.RenderStepped:Connect(function()
+      if not flying then stopFly() return end
+      local char2 = localPlayer.Character
+      if not char2 then stopFly() return end
+      local hrp2 = char2:FindFirstChild("HumanoidRootPart")
+      if not hrp2 then stopFly()
